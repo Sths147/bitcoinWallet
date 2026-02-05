@@ -1,10 +1,11 @@
 use anyhow::{Result};
 
 mod mnemonic;
+use mnemonic::{Wallet, generate_seed};
 
 
 fn main() -> Result<()> {
-    mnemonic::generate_entropy()?;
+    let wallet = Wallet::new(generate_seed()?);
     Ok(())
 }
 
