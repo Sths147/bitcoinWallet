@@ -1,11 +1,12 @@
 use anyhow::{Result};
 
 mod mnemonic;
+mod btc_backend;
 use mnemonic::{Wallet, generate_seed};
-
+use bip32::XPrv;
 
 fn main() -> Result<()> {
-    let wallet = Wallet::new(generate_seed()?);
+    let wallet = Wallet::new(XPrv::new(generate_seed()?)?);
     Ok(())
 }
 
