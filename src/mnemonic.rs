@@ -1,12 +1,13 @@
 use anyhow::{Result, anyhow};
 use bip39::{Mnemonic};
 use bip32::{XPrv, DerivationPath, XPub};
+use corepc_client::bitcoin::hashes::hash160::Hash;
 use rand_core::{OsRng, RngCore};
 use zeroize::{Zeroize, Zeroizing};
 use std::collections::HashMap;
 
 const GAP_LIMIT: u16 = 20;
-
+const BIP_84_PATH: &str = "m/44'/0'";
 /* 
 For each address purpose, 2 pairs of index, derivation map are kept
 derivation map to keep track of address/derivation paths matchings for spending
@@ -15,17 +16,15 @@ index to know the next derivation path to generate new address
 
 #[derive(Default)]
 struct AddressPurpose {
-    path: String,
+    name: String,
     internal_index: u32,
     external_index: u32,
-    external_derivation_map: HashMap<String, String>,
-    internal_derivation_map: HashMap<String, String>,
 }
 
 pub struct Wallet {
     xprv: XPrv,
     account: u8,
-    bip84: AddressPurpose,
+    derivation_maps: HashMap<String, AddressPurpose>,
 }
 
 /*
@@ -60,11 +59,21 @@ impl Wallet {
         Wallet {
             xprv,
             account: 0,
-            bip84: AddressPurpose::default(),
+            derivation_maps: HashMap::new(),
         }
     }
-    pub fn get_balance(&self) {
-
+    pub fn init_bip84_addresses(&mut self) {
+        let path = format!("{}/{}", BIP_84_PATH, self.account);
+        self.derivation_maps.insert(path, AddressPurpose::default());
+    }
+    fn update_index(&mut self, internal: u8, indexes: AddressPurpose) -> u32 {
+        if internal == 0 {
+            self.derivation_maps.entry(format!("{}/{}", BIP_84_PATH, self.account)).and_modify(|p| p.external_index = p.external_index + 1);
+            return indexes.external_index;
+        } else {
+            self.derivation_maps.entry(format!("{}/{}", BIP_84_PATH, self.account)).and_modify(|p| p.internal_index = p.internal_index + 1);
+            return indexes.internal_index;
+        }
     }
 }
 
@@ -80,13 +89,6 @@ impl AddressPurpose {
     /*
         Renvoyer le path
      */
-    pub fn new(bip: u16, account: u16) -> Self {
-        let path = format!("m/84'/0'/");
-        AddressPurpose {
-            path,
-            ..Default::default()
-        }
-    }
     fn get_new_address(&mut self, situation: u8) {
         let index = if situation == 0 {&self.external_index} else {&self.external_index};
         
