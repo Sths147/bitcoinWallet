@@ -2,11 +2,12 @@ use anyhow::{Result};
 
 mod mnemonic;
 mod btc_backend;
-use mnemonic::{Wallet, generate_seed};
+use mnemonic::{Wallet, generate_seed, get_account_xprv};
 use bip32::XPrv;
 
 fn main() -> Result<()> {
-    let wallet = Wallet::new(XPrv::new(generate_seed()?)?);
+    let mut wallet = Wallet::new(get_account_xprv(generate_seed()?)?);
+    wallet.new_internal_p2pkh()?;
     Ok(())
 }
 
