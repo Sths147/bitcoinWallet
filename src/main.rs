@@ -1,16 +1,29 @@
-use anyhow::{Result};
+use anyhow::Result;
 
-mod mnemonic;
 mod btc_backend;
-use mnemonic::{Wallet, generate_seed, get_account_xprv};
+mod mnemonic;
+mod electrum_backend;
 use bip32::XPrv;
+use mnemonic::{Wallet, generate_seed, get_account_xprv};
+use btc_backend::BitcoinCoreRpc;
+use electrum_backend::ElectrumBackend;
+use tokio;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    let core_client = BitcoinCoreRpc::new("http://localhost:18443", "user!".to_string(), "password!".to_string());
+    let electrum_client= ElectrumBackend::new("electrum.blockstream.info").await?;
+    // let info = client.client.list_unspent()?;
+    // println!("{:?}", info);
+    // println!("{:?}", check);
     let mut wallet = Wallet::new(get_account_xprv(generate_seed()?)?);
-    wallet.new_internal_p2pkh()?;
+    wallet.recover(&electrum_client).await?;
+    wallet.new_p2wpkh(1)?;
+    wallet.new_p2wpkh(1)?;
+    wallet.new_p2wpkh(1)?;
+    wallet.new_p2wpkh(1)?;
     Ok(())
 }
-
 
 // fn main() -> Result<()> {
 //     let rpc =  Client::new(
