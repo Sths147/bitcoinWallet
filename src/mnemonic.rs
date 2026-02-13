@@ -13,25 +13,11 @@ use rand_core::{OsRng, RngCore};
 use std::collections::HashMap;
 use zeroize::{Zeroize, Zeroizing};
 use rustywallet_electrum::Balance;
-use crate::BitcoinCoreRpc;
 use crate::electrum_backend::ElectrumBackend;
-// use bitcoin_hashes::hash160;
 
-const GAP_LIMIT: u16 = 20;
-const BIP_84_PATH: &str = "m/44'/0'/0'";
+const GAP_LIMIT: u32 = 20;
+const BIP_84_PATH: &str = "m/84'/0'/0'";
 const NETWORK: Network = Network::Testnet4;
-/*
-For each address purpose, 2 pairs of index, derivation map are kept
-derivation map to keep track of address/derivation paths matchings for spending
-index to know the next derivation path to generate new address
-*/
-
-#[derive(Default)]
-struct AddressPurpose {
-    account: u32,
-    internal_index: u32,
-    external_index: u32,
-}
 
 pub struct Wallet {
     xprv_84: XPrv,
@@ -84,7 +70,7 @@ impl Wallet {
             xpub_84: pubkey,
             account: 0,
             external_index: 0,
-            internal_index: 0, // derivation_maps: HashMap::new(),
+            internal_index: 0,
             address_map: HashMap::new(),
         }
     }
@@ -136,10 +122,13 @@ impl Wallet {
         Ok(())
     }
     ///Generate 20 external chain addresses
-    /// 
+    ///send them to electrum server to check balance
+    ///If all addresses are filled -> Continue
+    ///When gap of 20 empty addresses -> Stop
+    ///Do the same with internal chain (To do)
     pub async fn recover(&mut self, electrum: &ElectrumBackend) -> Result<()> {
         let mut addresses: Vec<String> = vec![];
-        let mut gap = 20;
+        let mut gap = GAP_LIMIT;
         let mut check_addresses: Vec<String> = vec![];
         loop {
             for _ in 0..gap {
@@ -159,11 +148,6 @@ impl Wallet {
             check_addresses = empty.into();
         }
         Ok(())
-        //etape 1: générer 20 addresses de external_chain
-        //etape 2: les envoyer à bitcoin_core pour qu'il les watch
-        //etape 3: vérifier si les addresses sont utilisées
-        //si 20 dernières addresses sont utilisées, continuer, sinon break;
-        //une fois fini faire de même avec les 20 addresses de internal_chain
     }
 }
 
@@ -173,58 +157,3 @@ fn emptyaddresses(addresses: &[Balance]) -> u32 {
         .take_while(|balance| balance.total() == 0)
         .count() as u32
 }
-
-
-/*
-To do : Commencer par simple:
-un seul account, uniquement BIP84
-une seule structure
-pour le recovery on fonctionne uniquement avec ce path la
-*/
-
-// impl AddressPurpose {
-//     // get new address, je dois :
-//     /*
-//         Renvoyer le path
-//      */
-//     pub fn new(account: u32) -> Self {
-//         AddressPurpose {
-//             account,
-//             ..Default::default()
-//         }
-//     }
-//     fn get_new_address(&mut self, situation: u8) {
-//         let index = if situation == 0 {&self.internal_index} else {&self.external_index};
-//         let derivation_path =
-//     }
-//     fn increase_index(&mut self, situation: u8) {
-//         if situation == 0 {
-//             if self.external_index == u32::MAX {
-//                 eprintln!("Max addresses reached for external chain with {}", self.path);
-//             }
-//             self.external_index += 1;
-//         } else {
-//             if self.internal_index == u32::MAX {
-//                 eprintln!("Max addresses reached for external chain with {}", self.path);
-//             }
-//             self.internal_index += 1;
-//         }
-//     }
-// }
-
-// pub fn derive_addresses() -> Result<()> {
-//     // let rootXprv = XPrv::new(&seed);
-//     let seed = generate_seed()?;
-
-//     let index = "0";
-//     // let xprv44 = XPrv::derive_from_path(&seed, &(BIP44PATH + index).parse()?)?;
-//     // let xprv49 = XPrv::derive_from_path(&seed, &(BIP49PATH + index).parse()?)?;
-//     // let xprv84 = XPrv::derive_from_path(&seed, &(BIP84PATH + index).parse()?)?;
-//     // let xprv86 = XPrv::derive_from_path(&seed, &(BIP86PATH + index).parse()?)?;
-//     // xprv44.zeroize();
-//     // println!("xprv44: {:?}", xprv44);
-//     // println!("xprv49: {:?}", xprv49);
-//     // println!("xprv84: {:?}", xprv84);
-//     // println!("xprv86: {:?}", xprv86);
-//     Ok(())
-// }
